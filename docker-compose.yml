@@ -31,3 +31,57 @@ services:
 
 volumes:
   tutorial-volume:
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: django-app
+  namespace: django-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: django-app
+  template:
+    metadata:
+      labels:
+        app: django-app
+    spec:
+      containers:
+        - name: django-app
+          image: "serjcol/django-app:1.0.4"
+          ports:
+            - containerPort: 3003
+          command: [sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:3003"]
+          envFrom:
+            - name: django-config
+---
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgresql
+  template:
+    metadata:
+      labels:
+        app: postgresql
+    spec:
+      containers:
+        - name: postgresql
+          image: "postgres:13-alpine"
+          env:
+            - name: DB_HOST
+              value: "{{ .Values.postgresql.host }}"
+            - name: DB_NAME
+              value: "{{ .Values.postgresql.database }}"
+            - name: DB_USER
+              value: "{{ .Values.postgresql.username }}"
+            - name: DB_PASS
+              value: "{{ .Values.postgresql.password }}"
+          volumeMounts:
+            - mountPath: /var/lib/postgresql/data
+              name: tutorial-volume
+
+      volumes:
+        - name: tutorial-volume
+          persistentVolumeClaim:
+            claimName: postgres-pvc
